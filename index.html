@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#050505">
+<title>Z Pinger</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+:root{--neon-green:#00FF9D;--neon-blue:#00E5FF;--neon-red:#FF0055;--dark-bg:#050505;--card-bg:#111;--text:rgba(255,255,255,.9)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--dark-bg);color:var(--text);font-family:'Outfit',sans-serif;min-height:100vh}
+.container{padding:24px 20px;max-width:420px;margin:0 auto;display:flex;flex-direction:column;align-items:center}
+header{text-align:center;margin-bottom:20px;width:100%}
+h1{font-family:'Orbitron',sans-serif;font-size:24px;letter-spacing:2px;margin-bottom:10px;color:var(--neon-blue);text-shadow:0 0 10px rgba(0,229,255,.5)}
+#status-badge{display:inline-block;padding:6px 16px;border-radius:20px;font-size:11px;font-weight:bold;letter-spacing:1px;border:1px solid transparent}
+.status-disconnected{background:rgba(255,0,85,.1);color:var(--neon-red);border-color:var(--neon-red)!important}
+.status-pinging{background:rgba(0,255,157,.1);color:var(--neon-green);border-color:var(--neon-green)!important;box-shadow:0 0 10px rgba(0,255,157,.2)}
+.stats-container{display:flex;justify-content:center;align-items:center;margin-top:15px;gap:30px;background:rgba(255,255,255,.05);padding:12px 24px;border-radius:12px}
+.stat-box{display:flex;flex-direction:column;align-items:center}
+.stat-label{font-size:9px;color:#666;letter-spacing:1px}
+.stat-value{font-size:20px;font-weight:bold;color:var(--neon-blue)}
+.neon-red-text{color:var(--neon-red)!important}
+.stat-divider{width:1px;height:24px;background:#333}
+.last-ping-container{display:flex;justify-content:space-between;align-items:center;width:100%;margin-top:10px;padding:0 5px;font-size:10px;color:#555}
+#reset-stats-btn{background:none;border:1px solid #333;color:#666;padding:4px 10px;border-radius:4px;font-size:9px;font-family:inherit}
+.pulse-container{padding:10px 0 30px;display:flex;justify-content:center}
+.power-btn{width:120px;height:120px;border-radius:50%;background:#000;border:2px solid #333;color:#444;display:flex;align-items:center;justify-content:center;transition:all .4s;-webkit-tap-highlight-color:transparent}
+.power-btn.active{border-color:var(--neon-blue);color:var(--neon-blue);box-shadow:0 0 20px rgba(0,229,255,.4);animation:pulse 3s infinite ease-in-out}
+@keyframes pulse{0%,100%{transform:scale(1);box-shadow:0 0 15px rgba(0,229,255,.4)}50%{transform:scale(1.05);box-shadow:0 0 30px rgba(0,229,255,.6)}}
+.settings-area{width:100%;display:flex;flex-direction:column;gap:15px}
+.setting-row{display:flex;justify-content:space-between;align-items:center;font-size:13px}
+select{background:var(--card-bg);color:var(--neon-blue);border:none;border-bottom:1px solid rgba(0,229,255,.3);padding:6px;font-family:inherit;font-size:13px;outline:none;max-width:180px}
+#interval-select{color:var(--neon-green);border-bottom-color:var(--neon-green)}
+.input-group{display:flex;width:100%;gap:5px}
+input[type=text]{flex:1;background:transparent;border:1px solid #444;color:var(--neon-green);padding:10px;border-radius:4px;font-family:monospace;font-size:13px}
+#save-url-btn{background:none;border:none;color:var(--neon-green);font-size:22px}
+.divider{width:100%;height:1px;background:#333;margin:20px 0}
+.log-section{width:100%}
+.log-header{color:#666;font-size:10px;margin-bottom:8px;letter-spacing:1px}
+.log-console{background:var(--card-bg);border:1px solid rgba(255,255,255,.05);border-radius:8px;height:200px;padding:10px;overflow-y:auto;font-family:monospace;font-size:11px}
+.log-entry{margin-bottom:4px}.log-time{color:#666}.log-msg-success{color:var(--neon-green)}.log-msg-error{color:var(--neon-red)}
+.empty-logs{color:#444;height:100%;display:flex;align-items:center;justify-content:center}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Z PINGER</h1>
+    <div id="status-badge" class="status-disconnected">STATUS: DISCONNECTED</div>
+    <div class="stats-container">
+      <div class="stat-box"><span class="stat-label">SENT</span><span id="stat-sent" class="stat-value">0</span></div>
+      <div class="stat-divider"></div>
+      <div class="stat-box"><span class="stat-label">DROPS</span><span id="stat-drops" class="stat-value neon-red-text">0</span></div>
+    </div>
+    <div class="last-ping-container">
+      <span id="last-ping-time">Last Ping: --:--:--</span>
+      <button id="reset-stats-btn">RESET</button>
+    </div>
+  </header>
+  <main style="width:100%">
+    <div class="pulse-container">
+      <button id="toggle-btn" class="power-btn">
+        <svg viewBox="0 0 24 24" width="64" height="64" fill="currentColor"><path d="M16.56,5.44L15.11,6.89C16.84,7.94 18,9.83 18,12A6,6 0 0,1 12,18A6,6 0 0,1 6,12C6,9.83 7.16,7.94 8.88,6.88L7.44,5.44C5.18,7.17 3.6,9.92 3.6,13.06C3.6,17.7 7.36,21.46 12,21.46C16.63,21.46 20.4,17.7 20.4,13.06C20.4,9.92 18.82,7.17 16.56,5.44M11,3H13V13H11V3Z"/></svg>
+      </button>
+    </div>
+    <div class="settings-area">
+      <div class="setting-row"><label>Target Network:</label>
+        <select id="network-select">
+          <option value="https://www.google.com">Google (Default)</option>
+          <option value="https://oneapp.hutch.lk">Hutch</option>
+          <option value="https://selfcare.dialog.lk">Dialog</option>
+          <option value="https://mas.mobitel.lk">Mobitel</option>
+          <option value="https://my.airtel.lk">Airtel</option>
+          <option value="custom">Custom URL</option>
+        </select></div>
+      <div id="custom-url-container" class="setting-row hidden">
+        <div class="input-group"><input type="text" id="custom-url-input" placeholder="https://example.com"><button id="save-url-btn">✓</button></div>
+      </div>
+      <div class="setting-row"><label>Ping Interval:</label>
+        <select id="interval-select">
+          <option value="5">Every 5s</option><option value="10">Every 10s</option>
+          <option value="15" selected>Every 15s</option><option value="30">Every 30s</option><option value="60">Every 1 min</option>
+        </select></div>
+    </div>
+    <div class="divider"></div>
+    <div class="log-section">
+      <div class="log-header">LOG CONSOLE</div>
+      <div id="log-console" class="log-console"><div class="empty-logs">No logs yet...</div></div>
+    </div>
+  </main>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const S=k=>{try{return JSON.parse(localStorage.getItem(k))}catch{return null}};
+const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+
+let isRunning=false, pingInterval=S('pingInterval')||15, targetUrl=S('targetUrl')||'https://www.google.com';
+let logs=S('logs')||[], sentCount=S('sentCount')||0, dropCount=S('dropCount')||0, timer=null;
+
+function startPinger(){stopPinger();performPing();timer=setInterval(performPing,pingInterval*1000);}
+function stopPinger(){if(timer){clearInterval(timer);timer=null;}}
+
+async function performPing(){
+  const timeStr=new Date().toLocaleTimeString('en-GB',{hour12:false});
+  let success=false,message='';
+  try{
+    const c=new AbortController();const t=setTimeout(()=>c.abort(),5000);
+    await fetch(targetUrl+(targetUrl.includes('?')?'&':'?')+'_zp='+Date.now(),{method:'HEAD',mode:'no-cors',cache:'no-store',signal:c.signal});
+    clearTimeout(t);success=true;sentCount++;message='Ping Success: '+friendly(targetUrl);
+  }catch(e){dropCount++;message='Ping Failed';}
+  logs.unshift({time:timeStr,message,success});
+  if(logs.length>50)logs.pop();
+  save('logs',logs);save('sentCount',sentCount);save('dropCount',dropCount);
+  render();
+}
+function friendly(u){
+  for(const[k,v]of[['google.com','Google'],['hutch.lk','Hutch'],['dialog.lk','Dialog'],['mobitel.lk','Mobitel'],['airtel.lk','Airtel']])if(u.includes(k))return v;
+  return u.length>24?u.slice(0,21)+'...':u;
+}
+function render(){
+  $('stat-sent').textContent=sentCount;$('stat-drops').textContent=dropCount;
+  $('last-ping-time').textContent='Last Ping: '+(logs[0]?logs[0].time:'--:--:--');
+  const lc=$('log-console');
+  if(!logs.length){lc.innerHTML='<div class="empty-logs">No logs yet...</div>';return;}
+  lc.innerHTML=logs.map(l=>`<div class="log-entry"><span class="log-time">[${l.time}] </span><span class="${l.success?'log-msg-success':'log-msg-error'}">${l.message}</span></div>`).join('');
+}
+function updateUI(){
+  $('toggle-btn').classList.toggle('active',isRunning);
+  $('status-badge').textContent=isRunning?'STATUS: PINGING':'STATUS: DISCONNECTED';
+  $('status-badge').className=isRunning?'status-pinging':'status-disconnected';
+}
+function applySettings(){
+  let t=$('network-select').value;
+  if(t==='custom')t=$('custom-url-input').value.trim()||'https://www.google.com';
+  if(!/^https?:\/\//i.test(t))t='https://'+t;
+  targetUrl=t;pingInterval=parseInt($('interval-select').value);
+  save('targetUrl',targetUrl);save('pingInterval',pingInterval);
+  if(isRunning)startPinger();
+}
+
+// init UI
+$('interval-select').value=pingInterval;
+if([...$('network-select').options].some(o=>o.value===targetUrl))$('network-select').value=targetUrl;
+else{$('network-select').value='custom';$('custom-url-input').value=targetUrl;$('custom-url-container').classList.remove('hidden');}
+render();
+
+$('toggle-btn').onclick=()=>{isRunning=!isRunning;updateUI();isRunning?startPinger():stopPinger();};
+$('network-select').onchange=()=>{const c=$('network-select').value==='custom';$('custom-url-container').classList.toggle('hidden',!c);if(!c)applySettings();};
+$('save-url-btn').onclick=applySettings;
+$('interval-select').onchange=applySettings;
+$('reset-stats-btn').onclick=()=>{if(confirm('Reset all stats and logs?')){logs=[];sentCount=0;dropCount=0;save('logs',logs);save('sentCount',0);save('dropCount',0);render();}};
+</script>
+</body>
+</html>
